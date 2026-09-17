@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0e1a">
+  <title>星语</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E⭐%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css?v=20260917AI">
+</head>
+<body>
+  <!-- ============ 星空首页 ============ -->
+  <div id="sky" class="sky">
+    <!-- 顶部栏 -->
+    <header class="topbar">
+      <button class="tb-icon" id="btn-filter" aria-label="筛选">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+      </button>
+      <div class="tb-right" style="width:36px"></div>
+    </header>
+
+    <!-- 筛选下拉 -->
+    <div id="filter-bar" class="filter-bar" hidden>
+      <button class="fb-item active" data-filter="all">全部</button>
+      <button class="fb-item" data-filter="happy">开心</button>
+      <button class="fb-item" data-filter="calm">平静</button>
+      <button class="fb-item" data-filter="sad">难过</button>
+      <button class="fb-item" data-filter="annoyed">烦躁</button>
+      <button class="fb-item" data-filter="angry">愤怒</button>
+      <button class="fb-item" data-filter="anxious">焦虑</button>
+      <button class="fb-item" data-filter="tired">疲惫</button>
+    </div>
+
+    <!-- 背景层 -->
+    <canvas id="sky-canvas" class="sky-canvas"></canvas>
+    <div class="sky-bg" id="sky-bg"></div>
+    <!-- 中心大金星 + 涟漪（仅空状态展示） -->
+    <div class="sky-center" id="sky-center" hidden>
+      <div class="center-star"></div>
+      <div class="center-ripples">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+    <!-- 数据星星 -->
+    <div class="sky-stars" id="sky-stars"></div>
+
+    <!-- FAB -->
+    <button id="fab-add" class="fab-add" aria-label="点亮">
+      <svg viewBox="0 0 48 48" class="fab-star"><path d="M24 4 L29 19 L45 19 L32 28 L37 44 L24 34 L11 44 L16 28 L3 19 L19 19 Z"/></svg>
+      <span>点亮</span>
+    </button>
+  </div>
+
+  <!-- 底部 Tab（放在 #sky 外，保证在各面板之上可点击） -->
+  <nav class="nav">
+    <button class="nav-item active" data-tab="sky"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2H22l-6 4.4 2.3 7-6.3-4.5-6.3 4.5 2.3-7L2 9.2h7.6z"/></svg><span>星空</span></button>
+    <button class="nav-item" data-tab="box"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg><span>星匣</span></button>
+    <button class="nav-item" data-tab="stats"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm-1-11h2v6h-2zm0-4h2v2h-2z"/></svg><span>星图</span></button>
+  </nav>
+
+  <!-- ============ 收集页 ============ -->
+  <div id="view-box" class="panel" hidden>
+    <header class="panel-header">
+      <div class="ph-row">
+        <button class="panel-back" data-close aria-label="返回星空">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <h2>收集</h2>
+      </div>
+      <p class="panel-sub">那些已经翻篇的心事，被星光轻轻收好</p>
+    </header>
+    <div id="box-list"></div>
+    <div id="box-empty" class="panel-empty" hidden>还没有收藏的星星</div>
+  </div>
+
+  <!-- ============ 星图页 ============ -->
+  <div id="view-stats" class="panel panel-chart" hidden>
+    <header class="chart-header">
+      <button class="panel-back chart-back" data-close aria-label="返回星空">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <span class="ch-deco"></span>
+      <h2>星图</h2>
+      <span class="ch-deco"></span>
+    </header>
+    <div id="stats-body" class="chart-body"></div>
+  </div>
+
+  <!-- ============ 写信弹层 ============ -->
+  <div id="compose" class="sheet" hidden>
+    <div class="sheet-mask" id="compose-mask"></div>
+    <div class="compose-sheet">
+      <button class="cs-close" id="compose-close">✕</button>
+      <div class="cs-title">把心事写进星光</div>
+
+      <!-- 纸感输入框 -->
+      <div class="paper-input">
+        <textarea id="write-text" rows="5" placeholder="今天想写点什么…"></textarea>
+      </div>
+
+      <!-- 心情：圆形 5 角星按钮（不是 emoji） -->
+      <div class="cs-moods" id="write-moods"></div>
+
+      <!-- 标签 -->
+      <div class="cs-tags" id="write-tags"></div>
+
+      <div class="cs-actions">
+        <button class="sh-btn" id="btn-image">📷</button>
+        <button class="sh-btn" id="btn-voice">🎤</button>
+        <button class="sh-send" id="btn-send">点亮</button>
+      </div>
+
+      <div class="write-preview-images" id="preview-images"></div>
+      <div class="write-preview-voice" id="preview-voice" hidden></div>
+    </div>
+  </div>
+
+  <!-- ============ 详情弹层 ============ -->
+  <div id="detail" class="sheet" hidden>
+    <div class="sheet-mask" id="detail-mask"></div>
+    <div class="sheet-body" id="detail-body"></div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- 录音指示 -->
+  <div id="rec-indicator" class="rec-indicator" hidden>
+    <div class="rec-ring"></div>
+    <span id="rec-time">00:00</span>
+    <button id="rec-cancel" type="button">取消</button>
+  </div>
+
+  <input type="file" id="file-image" accept="image/*" multiple hidden>
+
+  <script src="js/data.js?v=20260917AI"></script>
+  <script src="js/db.js?v=20260917AI"></script>
+  <script src="js/app.js?v=20260917AI"></script>
+</body>
+</html>
