@@ -2,8 +2,8 @@
 @import url('https://fonts.loli.net/css2?family=Caveat:wght@400;500;600;700&family=Noto+Serif+SC:wght@300;500;700&family=ZCOOL+KuaiLe&display=swap');
 
 :root {
-  /* 顶部安全区：刘海/挖孔机型用系统值，其余机型保底 24px（状态栏高度） */
-  --sat: max(env(safe-area-inset-top, 0px), 24px);
+  /* 顶部安全区：刘海/挖孔机型用系统值；保底 44px，兼容浏览器全屏模式下不上报安全区、内容顶到状态栏的情况 */
+  --sat: max(env(safe-area-inset-top, 0px), 44px);
   --bg-0: #080c18;
   --bg-1: #0e1328;
   --gold: #f4c96a;
