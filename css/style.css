@@ -1,7 +1,9 @@
 /* ============ 星语 V2 · 完全对齐参考图 ============ */
-@import url('https://fonts.loli.net/css2?family=Caveat:wght@400;500;600;700&family=Noto+Serif+SC:wght@300;500;700&display=swap');
+@import url('https://fonts.loli.net/css2?family=Caveat:wght@400;500;600;700&family=Noto+Serif+SC:wght@300;500;700&family=ZCOOL+KuaiLe&display=swap');
 
 :root {
+  /* 顶部安全区：刘海/挖孔机型用系统值，其余机型保底 24px（状态栏高度） */
+  --sat: max(env(safe-area-inset-top, 0px), 24px);
   --bg-0: #080c18;
   --bg-1: #0e1328;
   --gold: #f4c96a;
@@ -45,7 +47,7 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
   position: relative; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 18px 6px;
-  padding-top: calc(env(safe-area-inset-top) + 14px);
+  padding-top: calc(var(--sat) + 14px);
 }
 /* 标题组：— 星语 —（与星图页标题同款） */
 .tb-title-wrap {
@@ -233,8 +235,9 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
 /* ============ 写信 Sheet ============ */
 .compose-sheet {
   position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  display: flex; flex-direction: column;
   padding: 48px 20px 22px;
-  padding-bottom: calc(22px + env(safe-area-inset-bottom));
+  padding-bottom: calc(22px + env(safe-area-inset-bottom) + var(--kbd, 0px));
   background: linear-gradient(180deg, rgba(18,22,48,0.98), rgba(10,14,32,0.98));
   backdrop-filter: blur(24px);
   border: none;
@@ -261,7 +264,7 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
 }
 .cs-close {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 10px); right: 12px;
+  top: calc(var(--sat) + 10px); right: 12px;
   background: rgba(244,201,106,0.12);
   border: none; border-radius: 50%;
   width: 32px; height: 32px;
@@ -269,6 +272,7 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
   z-index: 2;
 }
 .cs-title {
+  flex-shrink: 0;
   font-family: 'Noto Serif SC', serif;
   font-size: 22px; font-weight: 500;
   text-align: center;
@@ -277,8 +281,10 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
   letter-spacing: 6px;
 }
 
-/* 纸感输入框 */
+/* 纸感输入框（弹性吃掉多余空间，点亮按钮因此永远沉底） */
 .paper-input {
+  flex: 1 1 auto; min-height: 150px;
+  display: flex;
   background: linear-gradient(180deg, #f9f0d8 0%, #f2e8cc 100%);
   border-radius: 12px;
   padding: 14px 16px 10px;
@@ -286,13 +292,13 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
   position: relative;
 }
 .paper-input textarea {
-  display: block; width: 100%;
+  flex: 1; display: block; width: 100%;
   border: none; outline: none; resize: none;
   background: transparent;
   font-family: 'Noto Serif SC', serif;
   font-size: 16px; line-height: 1.8;
   color: #2a2a2a;
-  min-height: 130px;
+  min-height: 0;
   background-image: repeating-linear-gradient(
     0deg, transparent 0, transparent 28px,
     rgba(180,160,100,0.25) 28px, rgba(180,160,100,0.25) 29px
@@ -302,6 +308,7 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
 
 /* 心情按钮：圆形 + 5角星 SVG（不是 emoji） */
 .cs-moods {
+  flex-shrink: 0;
   display: flex; justify-content: space-between; gap: 4px;
   margin-top: 18px;
 }
@@ -340,7 +347,7 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
 .cs-mood-btn.selected .mood-name { color: var(--gold); }
 
 /* 标签 */
-.cs-tags { display: flex; flex-wrap: nowrap; gap: 8px; margin-top: 14px; }
+.cs-tags { flex-shrink: 0; display: flex; flex-wrap: nowrap; gap: 8px; margin-top: 14px; }
 .cs-tags button {
   flex: 1 1 0; min-width: 0;
   font-family: 'Noto Serif SC', serif; font-size: 14px;
@@ -358,7 +365,7 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
   color: var(--gold);
 }
 
-.cs-actions { display: flex; gap: 10px; align-items: center; margin-top: 20px; }
+.cs-actions { flex-shrink: 0; display: flex; gap: 10px; align-items: center; margin-top: 20px; }
 .sh-btn {
   width: 42px; height: 42px; border-radius: 50%;
   border: 1px solid rgba(244,201,106,0.18);
@@ -410,6 +417,11 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
   border-radius: 10px; background: rgba(20,24,48,0.7); cursor: pointer; color: var(--gold);
 }
 .da-btn.danger { background: rgba(200,60,60,0.1); border-color: rgba(200,60,60,0.4); color: #f88; }
+.da-btn.gold {
+  background: linear-gradient(180deg, rgba(244,201,106,0.22), rgba(244,201,106,0.1));
+  border-color: rgba(244,201,106,0.6); color: var(--gold);
+  font-weight: 700;
+}
 
 /* ============ 面板（收集/星图） ============ */
 .panel {
@@ -427,7 +439,7 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
 @keyframes panelIn { from { opacity: 0; transform: translateY(20px); } }
 .panel-header {
   padding: 20px 22px 12px;
-  padding-top: calc(env(safe-area-inset-top) + 20px);
+  padding-top: calc(var(--sat) + 20px);
   text-align: left;
 }
 .panel-header h2 {
@@ -458,7 +470,104 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
 
 /* ============ 收集页 · 堆叠玻璃卡片 ============ */
 .collect-wrap { padding: 8px 18px 120px; }
-#box-list { padding: 8px 18px 120px; }
+#box-list { padding: 14px 18px 120px; }
+
+/* 月份头部（吸顶：年份小字 + 月份大字 + 月份选择按钮）
+   顶部预留刘海安全区；背景由上向下渐隐，与星空自然融合，不做生硬横带 */
+#box-month-head {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(var(--sat) + 10px) 22px 14px;
+  background: linear-gradient(180deg, rgba(8,12,24,0.78) 0%, rgba(8,12,24,0.55) 55%, rgba(8,12,24,0) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.bm-title { display: flex; align-items: baseline; gap: 9px; }
+#bm-year { font-size: 14px; color: var(--text-soft); letter-spacing: 1px; }
+#bm-mon {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 31px; font-weight: 600; color: var(--gold);
+  line-height: 1;
+}
+.bm-picker {
+  width: 38px; height: 38px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(244,201,106,0.25);
+  color: var(--gold); cursor: pointer;
+}
+.bm-picker svg { width: 19px; height: 19px; }
+.bm-picker.active { background: rgba(244,201,106,0.22); }
+
+/* 月份跳转浮层：年份条 + 12月格子 */
+#bm-pop { position: fixed; inset: 0; z-index: 60; }
+#bm-pop-mask { position: absolute; inset: 0; background: rgba(2,4,12,0.5); }
+#bm-pop-card {
+  position: absolute; top: calc(var(--sat) + 54px); right: 18px;
+  width: 278px;
+  padding: 13px 14px 15px;
+  background: linear-gradient(165deg, #1a2148, #0f142e);
+  border: 1px solid rgba(244,201,106,0.32);
+  border-radius: 16px;
+  box-shadow: 0 14px 44px rgba(0,0,0,0.55);
+}
+
+/* 年份条：紧凑胶囊，JS 按视口宽度加对称留白，保证可见的三个整体居中；
+   滚动吸附到每一个胶囊，停止时正对的三个居中 */
+#bmp-years {
+  display: flex; flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto; margin-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+#bmp-years::-webkit-scrollbar { display: none; }
+.bmp-year {
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+  padding: 6px 18px; border-radius: 999px; cursor: pointer;
+  font-family: 'Noto Serif SC', serif; font-size: 14px;
+  color: var(--text-soft);
+  border: 1px solid transparent;
+}
+.bmp-year.active {
+  color: var(--gold);
+  border-color: rgba(244,201,106,0.45);
+  background: rgba(244,201,106,0.1);
+}
+
+/* 12月格子：4行3列 */
+#bmp-months {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.bmp-cell {
+  position: relative;
+  height: 50px; border-radius: 11px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Noto Serif SC', serif; font-size: 16px;
+  color: rgba(200,205,230,0.3);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.bmp-cell.has {
+  color: var(--text-soft);
+  background: rgba(244,201,106,0.06);
+  border-color: rgba(244,201,106,0.25);
+}
+.bmp-cell.active {
+  color: var(--gold); font-weight: 600;
+  background: rgba(244,201,106,0.16);
+  border-color: rgba(244,201,106,0.65);
+  box-shadow: 0 0 14px rgba(244,201,106,0.25);
+}
+.bmp-cell .bmp-dot {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--gold); opacity: 0.75;
+}
+.bmp-cell.active .bmp-dot { display: none; }
 
 /* 单张堆叠卡片 */
 .collect-card {
@@ -558,7 +667,7 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
 .chart-header {
   position: relative;
   display: flex; align-items: center; justify-content: center; gap: 16px;
-  padding: calc(env(safe-area-inset-top) + 20px) 20px 14px;
+  padding: calc(var(--sat) + 20px) 20px 14px;
 }
 .chart-header h2 {
   font-family: 'Noto Serif SC', serif;
@@ -577,7 +686,7 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
 /* 左上角退出键 */
 .chart-back {
   position: absolute; left: 18px;
-  top: calc(env(safe-area-inset-top) + 22px);
+  top: calc(var(--sat) + 22px);
 }
 
 .chart-body { padding: 2px 0 150px; }
@@ -774,4 +883,70 @@ body { font-family: 'Noto Serif SC', serif; color: var(--text); -webkit-font-smo
   /* FAB 略收 */
   .fab-add { width: 68px; height: 68px; right: 18px; bottom: 90px; }
   .fab-star { width: 24px; height: 24px; }
+}
+
+/* ============ 星语卡预览弹层 ============ */
+.cardview-sheet {
+  position: absolute; left: 12px; right: 12px; bottom: 16px;
+  padding: 20px 18px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(22,28,56,0.98), rgba(12,16,36,0.99));
+  border: 1.5px solid var(--glass-brd);
+  border-radius: 24px;
+  box-shadow: 0 0 40px rgba(244,201,106,0.12);
+  animation: sheetUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  max-height: 90vh;
+  display: flex; flex-direction: column; align-items: center;
+}
+.cv-close {
+  position: absolute; top: 12px; right: 14px;
+  background: rgba(244,201,106,0.12); border: none; border-radius: 50%;
+  width: 32px; height: 32px; color: var(--gold); font-size: 15px; cursor: pointer;
+}
+.cv-title {
+  font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 500;
+  color: var(--gold); letter-spacing: 6px; padding-left: 6px;
+  margin-bottom: 14px;
+}
+.cv-preview {
+  width: 100%; max-height: 46vh;
+  display: flex; justify-content: center;
+  border-radius: 14px; overflow: hidden;
+}
+.cv-preview img {
+  max-width: 100%; max-height: 46vh; width: auto;
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+  -webkit-touch-callout: default; /* iOS 长按可保存 */
+}
+.cv-styles { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 16px 0 14px; }
+.cv-style {
+  font-family: 'Noto Serif SC', serif; font-size: 14px;
+  padding: 8px 18px; border-radius: 999px; cursor: pointer;
+  background: rgba(20,24,48,0.7);
+  border: 1px solid rgba(244,201,106,0.2);
+  color: var(--text-soft);
+}
+.cv-style.active {
+  background: rgba(244,201,106,0.18);
+  border-color: var(--gold-dim); color: var(--gold);
+}
+.cv-save {
+  width: 100%;
+  font-family: 'Noto Serif SC', serif; font-size: 18px; font-weight: 700;
+  letter-spacing: 8px; padding-left: 8px;
+  padding: 14px; border-radius: 14px; cursor: pointer;
+  color: #2a2110;
+  border: 1px solid var(--gold);
+  background: linear-gradient(180deg, #f7d483, #e0ac4c);
+  box-shadow: 0 4px 18px rgba(244,201,106,0.3);
+}
+.cv-save:active { transform: scale(0.98); }
+.cv-tip {
+  margin-top: 10px; font-size: 12px;
+  color: var(--text-soft); text-align: center;
+}
+@media (max-width: 360px) {
+  .cv-style { font-size: 13px; padding: 7px 13px; }
+  .cv-styles { gap: 7px; }
 }
