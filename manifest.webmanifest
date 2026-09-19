@@ -1,0 +1,27 @@
+﻿{
+  "name": "星语",
+  "short_name": "星语",
+  "description": "记录每一颗心事之星",
+  "lang": "zh-CN",
+  "start_url": "./index.html?v=20260919QA",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#04061a",
+  "theme_color": "#0a0e1a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

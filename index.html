@@ -1,12 +1,17 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0a0e1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="星语">
   <title>星语</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E⭐%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=20260917AI">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/style.css?v=20260919QA">
 </head>
 <body>
   <!-- ============ 星空首页 ============ -->
@@ -60,25 +65,32 @@
 
   <!-- ============ 收集页 ============ -->
   <div id="view-box" class="panel" hidden>
-    <header class="panel-header">
-      <div class="ph-row">
-        <button class="panel-back" data-close aria-label="返回星空">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
-        <h2>收集</h2>
+    <header id="box-month-head">
+      <div class="bm-title">
+        <span id="bm-year"></span><span id="bm-mon"></span>
       </div>
-      <p class="panel-sub">那些已经翻篇的心事，被星光轻轻收好</p>
+      <button id="bm-picker" class="bm-picker" aria-label="选择月份">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+        </svg>
+      </button>
     </header>
     <div id="box-list"></div>
     <div id="box-empty" class="panel-empty" hidden>还没有收藏的星星</div>
+
+    <!-- 月份快速跳转浮层：年份条 + 12月格子 -->
+    <div id="bm-pop" hidden>
+      <div id="bm-pop-mask"></div>
+      <div id="bm-pop-card">
+        <div id="bmp-years"></div>
+        <div id="bmp-months"></div>
+      </div>
+    </div>
   </div>
 
   <!-- ============ 星图页 ============ -->
   <div id="view-stats" class="panel panel-chart" hidden>
     <header class="chart-header">
-      <button class="panel-back chart-back" data-close aria-label="返回星空">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-      </button>
       <span class="ch-deco"></span>
       <h2>星图</h2>
       <span class="ch-deco"></span>
@@ -104,14 +116,14 @@
       <!-- 标签 -->
       <div class="cs-tags" id="write-tags"></div>
 
+      <div class="write-preview-images" id="preview-images"></div>
+      <div class="write-preview-voice" id="preview-voice" hidden></div>
+
       <div class="cs-actions">
         <button class="sh-btn" id="btn-image">📷</button>
         <button class="sh-btn" id="btn-voice">🎤</button>
         <button class="sh-send" id="btn-send">点亮</button>
       </div>
-
-      <div class="write-preview-images" id="preview-images"></div>
-      <div class="write-preview-voice" id="preview-voice" hidden></div>
     </div>
   </div>
 
@@ -119,6 +131,21 @@
   <div id="detail" class="sheet" hidden>
     <div class="sheet-mask" id="detail-mask"></div>
     <div class="sheet-body" id="detail-body"></div>
+  </div>
+
+  <!-- ============ 星语卡预览弹层 ============ -->
+  <div id="card-view" class="sheet" hidden>
+    <div class="sheet-mask" id="cardview-mask"></div>
+    <div class="cardview-sheet">
+      <button class="cv-close" id="cardview-close" aria-label="关闭">✕</button>
+      <div class="cv-title">星语卡</div>
+      <div class="cv-preview">
+        <img id="cv-image" alt="星语卡预览">
+      </div>
+      <div class="cv-styles" id="cv-styles"></div>
+      <button class="cv-save" id="cv-save">保存到相册</button>
+      <p class="cv-tip" id="cv-tip" hidden>iPhone 请点上方大图，长按选择「存储到相册」</p>
+    </div>
   </div>
 
   <!-- Toast -->
@@ -133,8 +160,17 @@
 
   <input type="file" id="file-image" accept="image/*" multiple hidden>
 
-  <script src="js/data.js?v=20260917AI"></script>
-  <script src="js/db.js?v=20260917AI"></script>
-  <script src="js/app.js?v=20260917AI"></script>
+  <script src="js/data.js?v=20260919QA"></script>
+  <script src="js/db.js?v=20260919QA"></script>
+  <script src="js/app.js?v=20260919QA"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+navigator.serviceWorker.register('sw.js').catch(function (err) {          
+  console.warn('SW register failed:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
