@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>星语 · 重新点亮</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Noto Serif SC', serif;
+    background: radial-gradient(ellipse at 50% 35%, #141a3e 0%, #0a0e28 45%, #04061a 100%);
+    color: #ede7d9;
+    display: flex; align-items: center; justify-content: center;
+    padding: 32px 28px;
+  }
+  .wrap { text-align: center; width: 100%; max-width: 360px; }
+  .star {
+    font-size: 54px; color: #f4c96a;
+    text-shadow: 0 0 26px rgba(244,201,106,.75);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{ transform: scale(1); opacity:.9;} 50%{ transform: scale(1.12); opacity:1;} }
+  h1 {
+    font-size: 24px; font-weight: 600; letter-spacing: 3px;
+    color: #f5f1e6; margin: 20px 0 30px;
+  }
+  ul { list-style: none; text-align: left; display: inline-block; }
+  li {
+    font-size: 16px; color: #8a8fa8;
+    padding: 11px 0 11px 34px; position: relative;
+    transition: color .3s;
+  }
+  li::before {
+    content: ''; position: absolute; left: 0; top: 14px;
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid rgba(244,201,106,.4);
+  }
+  li.ok { color: #f4c96a; }
+  li.ok::before {
+    background: #f4c96a; border-color: #f4c96a;
+  }
+  li.ok::after {
+    content: ''; position: absolute; left: 5px; top: 15px;
+    width: 6px; height: 10px; border: solid #0a0e28;
+    border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  #note {
+    margin-top: 34px; font-size: 13px; color: #8a8fa8; letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="star">&#9733;</div>
+    <h1>正在重新点亮</h1>
+    <ul>
+      <li id="s1">清除旧的缓存</li>
+      <li id="s2">注销旧的离线程序</li>
+      <li id="s3">迎接全新的星语</li>
+    </ul>
+    <p id="note">你的每一条记录都安然无恙</p>
+  </div>
+<script>
+(function () {
+  // 标记某一步完成
+  function setOk(id) { document.getElementById(id).classList.add('ok'); }
+
+  // 1. 清空所有 Cache Storage（旧页面文件都在这里）
+  function clearCaches() {
+    if (!window.caches) return Promise.resolve();
+    return caches.keys().then(function (keys) {
+      return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+    });
+  }
+
+  // 2. 注销所有 Service Worker（绝不触碰 IndexedDB 里的记录）
+  function unregisterSW() {
+    if (!navigator.serviceWorker) return Promise.resolve();
+    return navigator.serviceWorker.getRegistrations().then(function (regs) {
+      return Promise.all(regs.map(function (r) { return r.unregister(); }));
+    });
+  }
+
+  clearCaches()
+    .then(function () {
+      setOk('s1');
+      return unregisterSW();
+    })
+    .then(function () {
+      setOk('s2');
+      return new Promise(function (resolve) { setTimeout(resolve, 700); });
+    })
+    .then(function () {
+      setOk('s3');
+      // 3. 带全新时间戳跳回首页，确保走网络、拿最新文件
+      setTimeout(function () {
+        location.replace('./?r=' + Date.now());
+      }, 800);
+    })
+    .catch(function (err) {
+      document.getElementById('note').textContent = '遇到小问题：' + err + '，请截图告诉我';
+    });
+})();
+</script>
+</body>
+</html>
