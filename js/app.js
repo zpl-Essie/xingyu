@@ -120,9 +120,25 @@
     bindNav();
     bindCompose();
     loadStars();
+    initKeyboard();
 
     doc.getElementById('fab-add').addEventListener('click', openCompose);
   });
+
+  /* ---------- 键盘高度：写入 --kbd，写信弹层据此避让 ---------- */
+  function initKeyboard() {
+    var vv = window.visualViewport;
+    if (!vv) return;
+    function update() {
+      // 布局视口高度 - 可视视口高度 - 可视区顶部偏移 = 键盘（或底部工具条）高度
+      var kbh = Math.round(window.innerHeight - vv.height - vv.offsetTop);
+      // 小于 80px 视为浏览器 UI 抖动，不算键盘
+      doc.documentElement.style.setProperty('--kbd', kbh >= 80 ? kbh + 'px' : '0px');
+    }
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    update();
+  }
 
   /* ---------- 背景星星 ---------- */
   function initSkyBg() {
@@ -306,9 +322,24 @@
     box.hidden = false;
     box.scrollTop = 0;
     DB.listRecords({ includeArchived: true }).then(function (recs) {
-      recs = recs.filter(function (r) { return r.archived; });
-      renderPanelList('#box-list', recs);
-      doc.getElementById('box-empty').hidden = recs.length !== 0;
+      boxRecs = recs.filter(function (r) { return r.archived; });
+
+      var set = {};
+      boxRecs.forEach(function (r) { set[ymOf(r.createdAt)] = 1; });
+      monthKeys = Object.keys(set).sort(function (a, b) {
+        var pa = parseYm(a), pb = parseYm(b);
+        return pa.y - pb.y || pa.m - pb.m;
+      });
+
+      doc.getElementById('box-month-head').hidden = monthKeys.length === 0;
+      doc.getElementById('box-empty').hidden = monthKeys.length !== 0;
+      if (monthKeys.length) {
+        if (monthKeys.indexOf(activeYm) < 0) activeYm = monthKeys[monthKeys.length - 1]; // 默认最新月
+        renderMonthHead();
+        renderBoxMonth();
+      } else {
+        doc.getElementById('box-list').innerHTML = '';
+      }
     });
   }
   function openStats() {
@@ -329,16 +360,46 @@
     });
   });
 
-  /* ---------- 收集卡片：每条记录一张，纵向排列 ---------- */
-  function renderPanelList(sel, recs) {
-    var wrap = doc.querySelector(sel);
-    if (!recs.length) { wrap.innerHTML = ''; return; }
+  /* ---------- 星匣：月份大标题 + 当月记录 ---------- */
+  var monthKeys = [];   // 升序：旧 → 新，格式 'YYYY-M'（M 为 0 基月）
+  var activeYm = null;
+  var boxRecs = [];     // 全部已收藏记录
+  var ZH_WEEKS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+  function ymOf(ts) {
+    var t = new Date(ts);
+    return t.getFullYear() + '-' + t.getMonth();
+  }
+  function parseYm(ym) {
+    var p = ym.split('-');
+    return { y: +p[0], m: +p[1] };
+  }
+
+  // 顶部月份标题（年份小字 + 月份大字）
+  function renderMonthHead() {
+    var p = parseYm(activeYm);
+    doc.getElementById('bm-year').textContent = p.y;
+    doc.getElementById('bm-mon').textContent = (p.m + 1) + '月';
+  }
+
+  function gotoMonth(ym) {
+    if (ym === activeYm || monthKeys.indexOf(ym) < 0) return;
+    activeYm = ym;
+    renderMonthHead();
+    renderBoxMonth();
+    doc.getElementById('view-box').scrollTo({ top: 0 });
+  }
+
+  // 只渲染当前月份的记录
+  function renderBoxMonth() {
+    var wrap = doc.getElementById('box-list');
+    var recs = boxRecs.filter(function (r) { return ymOf(r.createdAt) === activeYm; });
     recs.sort(function (a, b) { return b.createdAt - a.createdAt; });
 
     var html = '';
     recs.forEach(function (r, i) {
       var t = new Date(r.createdAt);
-      var ts = t.getFullYear() + '/' + (t.getMonth() + 1) + '/' + t.getDate() + ' ' +
+      var dateLine = (t.getMonth() + 1) + '月' + t.getDate() + '日 ' + ZH_WEEKS[t.getDay()] + ' · ' +
         String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
       var moodLabel = MOODS[r.mood] || '';
       var preview = (r.text || '').slice(0, 60);
@@ -348,7 +409,7 @@
         collectDecoStars(i === 0) +
         '<div class="cc-text">' + escape(preview) + '</div>' +
         '<div class="cc-meta">' +
-          '<span>' + moodLabel + (r.tag ? ' · ' + (TAGS[r.tag] || '') : '') + ' · ' + ts + '</span>' +
+          '<span>' + moodLabel + (r.tag ? ' · ' + (TAGS[r.tag] || '') : '') + ' · ' + dateLine + '</span>' +
         '</div>' +
       '</div>';
     });
@@ -357,6 +418,109 @@
       el.addEventListener('click', function () { openDetail(el.dataset.id); });
     });
   }
+
+  // 月份快速跳转浮层：年份条 + 12月格子（有记录的点亮，点两下直达任意月）
+  var pickerYear = null;
+  function renderBmpYears() {
+    var years = {};
+    monthKeys.forEach(function (ym) { years[parseYm(ym).y] = true; });
+    var keys = Object.keys(years).map(Number).sort(function (a, b) { return a - b; });
+    var box = doc.getElementById('bmp-years');
+    box.innerHTML = keys.map(function (y) {
+      return '<div class="bmp-year' + (y === pickerYear ? ' active' : '') + '" data-y="' + y + '">' + y + '</div>';
+    }).join('');
+    box.querySelectorAll('.bmp-year').forEach(function (el) {
+      el.addEventListener('click', function () {
+        pickerYear = +el.dataset.y;
+        renderBmpYears();
+        renderBmpMonths();
+      });
+    });
+    // 两侧对称留白：不足一行时整体居中；超出一行时让可见的三个居中
+    box.style.paddingLeft = box.style.paddingRight = '';
+    var cw = box.clientWidth;
+    var firstChip = box.querySelector('.bmp-year');
+    var chipW = firstChip ? firstChip.offsetWidth : 0;
+    var innerW = box.scrollWidth;
+    var pad;
+    if (innerW <= cw) {
+      pad = Math.max(0, Math.floor((cw - innerW) / 2));
+    } else {
+      pad = Math.max(0, Math.floor((cw - 3 * chipW - 12) / 2));
+    }
+    box.style.paddingLeft = box.style.paddingRight = pad + 'px';
+    // 让当前选中年份在横条中居中可见
+    var active = box.querySelector('.bmp-year.active');
+    if (active) box.scrollLeft = Math.max(0, active.offsetLeft - (box.clientWidth - active.offsetWidth) / 2);
+  }
+  function renderBmpMonths() {
+    var activeP = parseYm(activeYm);
+    var box = doc.getElementById('bmp-months');
+    var html = '';
+    for (var m = 0; m < 12; m++) {
+      var ym = pickerYear + '-' + m;
+      var has = monthKeys.indexOf(ym) >= 0;
+      var cls = 'bmp-cell' + (has ? ' has' : '') +
+        (has && pickerYear === activeP.y && m === activeP.m ? ' active' : '');
+      html += '<div class="' + cls + '"' + (has ? ' data-ym="' + ym + '"' : '') + '>' +
+        (m + 1) + '月' +
+        (has ? '<span class="bmp-dot"></span>' : '') +
+        '</div>';
+    }
+    box.innerHTML = html;
+    box.querySelectorAll('.bmp-cell.has').forEach(function (el) {
+      el.addEventListener('click', function () {
+        closeBmPop();
+        gotoMonth(el.dataset.ym);
+      });
+    });
+  }
+  function openBmPop() {
+    pickerYear = parseYm(activeYm).y;
+    // 先显示浮层再渲染：display:none 时所有宽度读数为 0，留白会算错
+    doc.getElementById('bm-pop').hidden = false;
+    renderBmpYears();
+    renderBmpMonths();
+    doc.getElementById('bm-picker').classList.add('active');
+  }
+  function closeBmPop() {
+    doc.getElementById('bm-pop').hidden = true;
+    doc.getElementById('bm-picker').classList.remove('active');
+  }
+  doc.getElementById('bm-picker').addEventListener('click', function () {
+    if (doc.getElementById('bm-pop').hidden) openBmPop(); else closeBmPop();
+  });
+  doc.getElementById('bm-pop-mask').addEventListener('click', closeBmPop);
+
+  // 在星匣区域左右滑 → 上一月 / 下一月（与上下滚动互不干扰）
+  (function bindMonthSwipe() {
+    var box = doc.getElementById('view-box');
+    var sx = 0, sy = 0, lock = null;
+    box.addEventListener('touchstart', function (e) {
+      var t = e.touches[0];
+      sx = t.clientX; sy = t.clientY; lock = null;
+    }, { passive: true });
+    box.addEventListener('touchmove', function (e) {
+      if (lock) return;
+      var t = e.touches[0];
+      var dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) > 12 || Math.abs(dy) > 12) {
+        lock = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      }
+    }, { passive: true });
+    box.addEventListener('touchend', function (e) {
+      if (lock === 'x') {
+        var t = e.changedTouches[0];
+        var dx = t.clientX - sx;
+        if (Math.abs(dx) > 48) {
+          var i = monthKeys.indexOf(activeYm);
+          var ni = dx < 0 ? i + 1 : i - 1; // 向左滑 → 更新的月
+          if (ni >= 0 && ni < monthKeys.length) gotoMonth(monthKeys[ni]);
+        }
+      }
+      lock = null;
+    }, { passive: true });
+  })();
 
   /* 装饰星 SVG：✦ 四芒星（粉/蓝/金多彩） */
   function collectDecoStars(isGold) {
@@ -757,6 +921,7 @@
       }
       html += '<div class="bd-actions">';
       if (!rec.archived) html += '<button class="da-btn" data-act="archive">归档</button>';
+      if (rec.archived) html += '<button class="da-btn gold" data-act="makecard">生成星语卡</button>';
       html += '<button class="da-btn danger" data-act="delete">删除</button>';
       html += '</div>';
       body.innerHTML = html;
@@ -764,6 +929,9 @@
       body.querySelectorAll('[data-act]').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var act = btn.dataset.act;
+          if (act === 'makecard') {
+            openCardView(id);
+          }
           if (act === 'archive') {
             DB.toggleArchive(id, true).then(function () {
               closeDetail(); loadStars(); openBox(); showToast('收进星匣了');
@@ -798,4 +966,763 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c];
     });
   }
+
+  /* ============================================================
+     星语卡 · Canvas 绘制引擎（1080×1350，无外部库）
+     ============================================================ */
+  var CW = 1080, CHH = 1350;
+  var cardCanvas = doc.createElement('canvas');
+  cardCanvas.width = CW; cardCanvas.height = CHH;
+  var cctx = cardCanvas.getContext('2d');
+
+  var CARD_STYLES = [
+    { key: 'letter',   name: '信纸星' },
+    { key: 'postcard', name: '明信片' },
+    { key: 'diary',    name: '手账笔记' },
+    { key: 'calendar', name: '日历页' },
+    { key: 'ticket',   name: '票根' }
+  ];
+
+  /* ---------- 确定性随机（同一条记录每次画出的星点位置一致） ---------- */
+  function strSeed(s) {
+    var h = 1779033703;
+    for (var i = 0; i < s.length; i++) {
+      h = Math.imul(h ^ s.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    return function () {
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      h ^= h >>> 16;
+      return (h >>> 0) / 4294967296;
+    };
+  }
+
+  /* ---------- 星空背景 ---------- */
+  function drawCardBg(c, seedStr, scheme) {
+    var g = c.createLinearGradient(0, 0, 0, CHH);
+    if (scheme === 'frame') {
+      g.addColorStop(0, '#050716'); g.addColorStop(1, '#0b0f26');
+    } else {
+      g.addColorStop(0, '#070a22'); g.addColorStop(0.55, '#0c1232'); g.addColorStop(1, '#05071a');
+    }
+    c.fillStyle = g; c.fillRect(0, 0, CW, CHH);
+
+    // 星云光晕
+    var rg = c.createRadialGradient(300, 280, 0, 300, 280, 620);
+    rg.addColorStop(0, scheme === 'frame' ? 'rgba(110,80,180,0.22)' : 'rgba(130,90,210,0.28)');
+    rg.addColorStop(1, 'rgba(130,90,210,0)');
+    c.fillStyle = rg; c.fillRect(0, 0, CW, CHH);
+    rg = c.createRadialGradient(820, 980, 0, 820, 980, 680);
+    rg.addColorStop(0, 'rgba(60,100,200,0.2)'); rg.addColorStop(1, 'rgba(60,100,200,0)');
+    c.fillStyle = rg; c.fillRect(0, 0, CW, CHH);
+
+    // 散落星点
+    var rnd = strSeed(seedStr);
+    for (var i = 0; i < 170; i++) {
+      var x = rnd() * CW, y = rnd() * CHH, r = rnd() * 1.8 + 0.5;
+      c.globalAlpha = rnd() * 0.6 + 0.3;
+      c.fillStyle = rnd() < 0.12 ? '#bcd0ff' : '#ffffff';
+      c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill();
+    }
+    // 少量四角小闪
+    c.globalAlpha = 1;
+    for (var k = 0; k < 9; k++) {
+      drawSparkle(c, rnd() * CW, rnd() * CHH, rnd() * 6 + 5, rnd() * 6.28);
+    }
+  }
+  function drawSparkle(c, x, y, r, rot) {
+    c.save(); c.translate(x, y); c.rotate(rot);
+    c.fillStyle = 'rgba(255,255,255,0.85)';
+    c.beginPath();
+    c.moveTo(0, -r); c.quadraticCurveTo(0, 0, r, 0);
+    c.quadraticCurveTo(0, 0, 0, r); c.quadraticCurveTo(0, 0, -r, 0);
+    c.quadraticCurveTo(0, 0, 0, -r);
+    c.fill(); c.restore();
+  }
+
+  /* ---------- 五角星路径 ---------- */
+  function traceStar(c, cx, cy, outer, inner) {
+    c.beginPath();
+    for (var i = 0; i < 5; i++) {
+      var a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+      var x = cx + Math.cos(a) * outer, y = cy + Math.sin(a) * outer;
+      i === 0 ? c.moveTo(x, y) : c.lineTo(x, y);
+      a += Math.PI / 5;
+      x = cx + Math.cos(a) * inner; y = cy + Math.sin(a) * inner;
+      c.lineTo(x, y);
+    }
+    c.closePath();
+  }
+  function drawBigStar(c, cx, cy, outer, colors) {
+    c.save();
+    c.shadowColor = colors[0]; c.shadowBlur = outer * 0.9;
+    var g = c.createLinearGradient(cx, cy - outer, cx, cy + outer);
+    g.addColorStop(0, colors[0]); g.addColorStop(1, colors[1]);
+    c.fillStyle = g;
+    traceStar(c, cx, cy, outer, outer * 0.46);
+    c.fill();
+    c.restore();
+  }
+
+  /* ---------- 文字换行 / 自适应字号 ---------- */
+  var SERIF = "'Noto Serif SC', serif";
+  var HAPPY = "'ZCOOL KuaiLe', 'Noto Serif SC', serif";
+  function wrapText(c, text, maxW) {
+    var lines = [];
+    String(text).split('\n').forEach(function (para) {
+      var cur = '';
+      for (var i = 0; i < para.length; i++) {
+        var ch = para[i];
+        if (cur && c.measureText(cur + ch).width > maxW) { lines.push(cur); cur = ch; }
+        else cur += ch;
+      }
+      lines.push(cur);
+    });
+    return lines;
+  }
+  function fitTextFont(c, text, maxW, maxH, start, fontName, weight, lhRatio) {
+    for (var s = start; s >= 26; s -= 2) {
+      c.font = weight + ' ' + s + 'px ' + fontName;
+      var lines = wrapText(c, text, maxW);
+      var lh = s * lhRatio;
+      if (lines.length * lh <= maxH) return { size: s, lines: lines, lh: lh };
+    }
+    c.font = weight + ' 26px ' + fontName;
+    return { size: 26, lines: wrapText(c, text, maxW), lh: 26 * lhRatio };
+  }
+  function fitText(c, text, maxW, maxH, start) {
+    return fitTextFont(c, text, maxW, maxH, start, SERIF, '500', 1.72);
+  }
+  function drawLines(c, lines, cx, topY, lh, color) {
+    c.fillStyle = color; c.textAlign = 'center';
+    lines.forEach(function (ln, i) { c.fillText(ln, cx, topY + i * lh); });
+  }
+
+  /* ---------- 落款：日期 + 星语 ---------- */
+  function drawFooter(c, dateStr, y) {
+    c.textAlign = 'center';
+    c.fillStyle = 'rgba(237,231,217,0.8)';
+    c.font = '400 30px ' + SERIF;
+    c.fillText(dateStr, 540, y);
+
+    var label = '星语';
+    c.font = '400 26px ' + SERIF;
+    var tw = c.measureText(label).width;
+    var groupW = 20 + 8 + tw, sx = 540 - groupW / 2;
+    drawBigStar(c, sx + 9, y + 46, 11, ['#f4c96a', '#c89a3a']);
+    c.textAlign = 'left'; c.fillStyle = 'rgba(244,201,106,0.85)';
+    c.fillText(label, sx + 20, y + 56);
+  }
+
+  function roundRectPath(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  /* ---------- 模板 1：信纸星 ---------- */
+  function tplLetter(c, rec, mc) {
+    drawCardBg(c, rec.id + 'letter', 'letter');
+    c.save();
+    c.translate(540, 680); c.rotate(-0.014);
+
+    // 信纸
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,0.55)'; c.shadowBlur = 45; c.shadowOffsetY = 18;
+    roundRectPath(c, -400, -400, 800, 800, 18);
+    var pg = c.createLinearGradient(0, -400, 0, 400);
+    pg.addColorStop(0, '#f9f0d6'); pg.addColorStop(1, '#f0e5c6');
+    c.fillStyle = pg; c.fill();
+    c.restore();
+
+    // 横线
+    c.strokeStyle = 'rgba(180,160,100,0.35)'; c.lineWidth = 1.5;
+    for (var y = -310; y <= 320; y += 62) {
+      c.beginPath(); c.moveTo(-330, y); c.lineTo(330, y); c.stroke();
+    }
+
+    // 心情小星（右上角）
+    drawBigStar(c, 322, -338, 30, mc);
+
+    // 文字：像真实信纸一样从上部开始书写，自上而下
+    var fit = fitText(c, rec.text || '', 660, 600, 44);
+    c.font = '500 ' + fit.size + 'px ' + SERIF;
+    var topY = -235 + fit.size;
+    c.fillStyle = '#3c3426'; c.textAlign = 'center';
+    fit.lines.forEach(function (ln, i) { c.fillText(ln, 0, topY + i * fit.lh); });
+
+    c.restore();
+    drawFooter(c, dateDot(rec.createdAt), 1225);
+  }
+
+  /* ---------- 通用小工具：hex→rgba / 浅色底品牌落款 ---------- */
+  function cRgba(hex, a) {
+    var h = hex.replace('#', '');
+    return 'rgba(' + parseInt(h.substr(0, 2), 16) + ',' + parseInt(h.substr(2, 2), 16) + ',' + parseInt(h.substr(4, 2), 16) + ',' + a + ')';
+  }
+  function cardBrand(c, y) {
+    c.font = '400 26px ' + SERIF;
+    var label = '星语';
+    var tw = c.measureText(label).width;
+    var sx = 540 - (20 + 8 + tw) / 2;
+    drawBigStar(c, sx + 9, y - 8, 11, ['#f4c96a', '#c89a3a']);
+    c.textAlign = 'left'; c.fillStyle = 'rgba(201,164,74,0.9)';
+    c.fillText(label, sx + 20, y);
+  }
+
+  /* ---------- 模板 2：明信片 ---------- */
+  function tplPostcard(c, rec, mc) {
+    c.fillStyle = '#f5eedb'; c.fillRect(0, 0, CW, CHH);
+    var rnd = strSeed(rec.id + 'pc');
+    for (var i = 0; i < 150; i++) {
+      c.globalAlpha = rnd() * 0.05 + 0.02;
+      c.fillStyle = '#7a6844';
+      c.beginPath(); c.arc(rnd() * CW, rnd() * CHH, rnd() * 1.3 + 0.4, 0, 6.283); c.fill();
+    }
+    c.globalAlpha = 1;
+    c.strokeStyle = '#d9cba4'; c.lineWidth = 2;
+    c.strokeRect(30, 30, CW - 60, CHH - 60);
+
+    c.textAlign = 'center';
+    c.fillStyle = '#7a6f55'; c.font = '500 38px ' + SERIF;
+    c.fillText('P O S T   C A R D', 540, 150);
+    c.fillStyle = '#b0a37f'; c.font = '400 26px ' + SERIF;
+    c.fillText('★ 星 语 邮 政', 540, 200);
+
+    c.strokeStyle = '#d3c5a0'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(560, 260); c.lineTo(560, 1160); c.stroke();
+
+    // 左半：正文
+    c.textAlign = 'left';
+    c.fillStyle = '#8a7c5e'; c.font = '500 34px ' + SERIF;
+    c.fillText('致 明天的我：', 120, 370);
+    var fit = fitText(c, rec.text || '', 390, 620, 44);
+    c.font = '500 ' + fit.size + 'px ' + SERIF;
+    c.fillStyle = '#4a4234';
+    fit.lines.forEach(function (ln, j) { c.fillText(ln, 120, 440 + j * fit.lh); });
+
+    // 右半：邮票
+    var sx = 700, sy = 300, sw = 170, sh = 200;
+    c.save();
+    c.setLineDash([0.5, 11]); c.lineCap = 'round'; c.lineWidth = 3.5;
+    c.strokeStyle = '#b8a87e';
+    c.strokeRect(sx - 7, sy - 7, sw + 14, sh + 14);
+    c.restore();
+    c.fillStyle = '#fdfaf2'; c.fillRect(sx, sy, sw, sh);
+    var sg = c.createLinearGradient(0, sy, 0, sy + sh);
+    sg.addColorStop(0, mc[0]); sg.addColorStop(1, mc[1]);
+    c.fillStyle = sg; c.fillRect(sx + 14, sy + 14, sw - 28, sh - 28);
+    c.save();
+    c.shadowColor = cRgba(mc[1], 0.9); c.shadowBlur = 22;
+    c.fillStyle = '#ffffff';
+    traceStar(c, sx + sw / 2, sy + sh / 2 + 4, 38, 17);
+    c.fill();
+    c.restore();
+    var ds = dateDot(rec.createdAt);
+    c.fillStyle = 'rgba(255,255,255,0.92)'; c.font = '500 22px ' + SERIF; c.textAlign = 'right';
+    c.fillText(ds.slice(5).replace('.', '·'), sx + sw - 26, sy + sh - 26);
+
+    // 邮戳（压着邮票下缘）
+    c.strokeStyle = 'rgba(138,124,94,0.8)'; c.lineWidth = 3;
+    c.beginPath(); c.arc(745, 560, 88, 0, 6.283); c.stroke();
+    c.lineWidth = 1.5; c.strokeStyle = 'rgba(138,124,94,0.5)';
+    c.beginPath(); c.arc(745, 560, 70, 0, 6.283); c.stroke();
+    c.textAlign = 'center'; c.fillStyle = '#8a7c5e';
+    c.font = '400 24px ' + SERIF; c.fillText(ds.slice(0, 4), 745, 552);
+    c.font = '500 30px ' + SERIF; c.fillText(ds.slice(5), 745, 590);
+    c.strokeStyle = 'rgba(138,124,94,0.45)'; c.lineWidth = 2;
+    [640, 664, 688].forEach(function (wy) {
+      c.beginPath();
+      for (var wx = 580; wx <= 940; wx += 40) {
+        var amp = (wx / 40) % 2 === 0 ? -6 : 6;
+        if (wx === 580) c.moveTo(wx, wy);
+        c.quadraticCurveTo(wx + 20, wy + amp, wx + 40, wy);
+      }
+      c.stroke();
+    });
+
+    // 收件
+    c.textAlign = 'left';
+    c.fillStyle = '#6b5f45'; c.font = '500 36px ' + SERIF;
+    c.fillText('寄给 明天的我', 620, 812);
+    c.strokeStyle = '#d3c5a0'; c.lineWidth = 2;
+    [830, 920, 1010].forEach(function (ly3) {
+      c.beginPath(); c.moveTo(620, ly3); c.lineTo(960, ly3); c.stroke();
+    });
+
+    cardBrand(c, 1250);
+  }
+
+  /* ---------- 和纸胶带 ---------- */
+  function washiTape(c, x, y, w, h, rot, color) {
+    c.save(); c.translate(x, y); c.rotate(rot);
+    c.fillStyle = color;
+    c.fillRect(-w / 2, -h / 2, w, h);
+    c.fillStyle = 'rgba(255,255,255,0.28)';
+    c.fillRect(-w / 2, -6, w, 12);
+    c.restore();
+  }
+  /* ---------- 配图：异步加载（dataURL） ---------- */
+  function loadPhoto(rec) {
+    return new Promise(function (res) {
+      if (rec.images && rec.images.length) {
+        var im = new Image();
+        im.onload = function () { res(im); };
+        im.onerror = function () { res(null); };
+        im.src = rec.images[0];
+      } else res(null);
+    });
+  }
+
+  /* ---------- 配图框：真照片封面裁剪；无图时心情色插画 ---------- */
+  function photoBox(c, img, x, y, w, h, r, mc, seed) {
+    c.save();
+    roundRectPath(c, x, y, w, h, r); c.clip();
+    if (img) {
+      var iw = img.naturalWidth, ih = img.naturalHeight;
+      var ir = iw / ih, br = w / h, sx, sy, sw, sh;
+      if (ir > br) { sh = ih; sw = sh * br; sx = (iw - sw) / 2; sy = 0; }
+      else { sw = iw; sh = sw / br; sy = (ih - sh) / 2; sx = 0; }
+      c.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+    } else {
+      var g = c.createLinearGradient(x, y, x, y + h);
+      g.addColorStop(0, mc[0]); g.addColorStop(1, mc[1]);
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      var rnd = strSeed(seed || 'pbox');
+      for (var d = 0; d < 30; d++) {
+        c.globalAlpha = rnd() * 0.5 + 0.2; c.fillStyle = '#ffffff';
+        c.beginPath(); c.arc(x + rnd() * w, y + rnd() * h, rnd() * 1.7 + 0.5, 0, 6.283); c.fill();
+      }
+      c.globalAlpha = 1;
+      drawBigStar(c, x + w / 2, y + h / 2, Math.min(w, h) * 0.17, ['#ffffff', mc[0]]);
+    }
+    c.restore();
+    c.strokeStyle = 'rgba(60,50,30,0.18)'; c.lineWidth = 2;
+    roundRectPath(c, x, y, w, h, r); c.stroke();
+  }
+
+  /* ---------- 手绘涂鸦工具 ---------- */
+  var INK = '#57504a';
+  function setInk(c, w, color) {
+    c.strokeStyle = color || INK; c.fillStyle = color || INK;
+    c.lineWidth = w; c.lineCap = 'round'; c.lineJoin = 'round';
+  }
+  function cloudPath(c, w, h) {
+    c.beginPath();
+    c.moveTo(-w * 0.5, h * 0.15);
+    c.quadraticCurveTo(-w * 0.52, -h * 0.35, -w * 0.28, -h * 0.28);
+    c.quadraticCurveTo(-w * 0.22, -h * 0.72, w * 0.05, -h * 0.45);
+    c.quadraticCurveTo(w * 0.3, -h * 0.62, w * 0.42, -h * 0.22);
+    c.quadraticCurveTo(w * 0.58, h * 0.05, w * 0.3, h * 0.25);
+    c.lineTo(-w * 0.3, h * 0.25);
+    c.quadraticCurveTo(-w * 0.55, h * 0.28, -w * 0.5, h * 0.15);
+    c.closePath();
+  }
+  function dCloud(c, x, y, w, h, fill) {
+    c.save(); c.translate(x, y);
+    cloudPath(c, w, h);
+    c.fillStyle = fill; c.fill();
+    setInk(c, 3, '#5a96d0'); c.stroke();
+    c.restore();
+  }
+  function dFlower(c, x, y, r, petal, center) {
+    c.save(); c.translate(x, y);
+    for (var i = 0; i < 5; i++) {
+      var a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+      c.fillStyle = petal;
+      c.beginPath(); c.arc(Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62, r * 0.5, 0, 6.283); c.fill();
+    }
+    c.fillStyle = center || '#e8c25a';
+    c.beginPath(); c.arc(0, 0, r * 0.42, 0, 6.283); c.fill();
+    c.restore();
+  }
+  function dHeart(c, x, y, s, fill) {
+    c.save(); c.translate(x, y);
+    c.beginPath();
+    c.moveTo(0, s * 0.32);
+    c.bezierCurveTo(-s * 0.62, -0.08, -s * 0.36, -s * 0.55, 0, -s * 0.25);
+    c.bezierCurveTo(s * 0.36, -s * 0.55, s * 0.62, -0.08, 0, s * 0.32);
+    c.closePath();
+    if (fill) { c.fillStyle = fill; c.fill(); }
+    setInk(c, 3, fill ? '#ffffff' : INK); c.stroke();
+    c.restore();
+  }
+  function dCat(c, x, y, s) {
+    c.save(); c.translate(x, y); setInk(c, 3.4);
+    c.beginPath(); c.moveTo(-0.28 * s, -0.5 * s); c.lineTo(-0.18 * s, -0.72 * s); c.lineTo(-0.06 * s, -0.52 * s); c.stroke();
+    c.beginPath(); c.moveTo(0.06 * s, -0.52 * s); c.lineTo(0.18 * s, -0.72 * s); c.lineTo(0.28 * s, -0.5 * s); c.stroke();
+    c.beginPath(); c.arc(0, -0.35 * s, 0.26 * s, 0, 6.283); c.stroke();
+    c.beginPath();
+    c.moveTo(-0.22 * s, -0.12 * s);
+    c.quadraticCurveTo(-0.34 * s, 0.25 * s, -0.22 * s, 0.42 * s);
+    c.lineTo(0.22 * s, 0.42 * s);
+    c.quadraticCurveTo(0.34 * s, 0.25 * s, 0.22 * s, -0.12 * s);
+    c.stroke();
+    c.beginPath(); c.moveTo(0.2 * s, 0.3 * s); c.quadraticCurveTo(0.52 * s, 0.28 * s, 0.42 * s, 0.04 * s); c.stroke();
+    c.beginPath(); c.rect(-0.1 * s, 0.19 * s, 0.2 * s, 0.16 * s); c.stroke();
+    c.fillStyle = INK;
+    c.beginPath(); c.arc(-0.09 * s, -0.38 * s, 0.028 * s, 0, 6.283); c.fill();
+    c.beginPath(); c.arc(0.09 * s, -0.38 * s, 0.028 * s, 0, 6.283); c.fill();
+    c.beginPath(); c.moveTo(-0.03 * s, -0.3 * s); c.quadraticCurveTo(0, -0.26 * s, 0.03 * s, -0.3 * s); c.stroke();
+    c.restore();
+  }
+  function dTag(c, x, y, s) {
+    c.save(); c.translate(x, y);
+    setInk(c, 2.5, '#c2a878');
+    c.beginPath();
+    c.moveTo(-s * 0.32, -s * 0.5); c.lineTo(s * 0.32, -s * 0.42);
+    c.lineTo(s * 0.3, s * 0.5); c.lineTo(-s * 0.3, s * 0.5); c.closePath();
+    c.fillStyle = '#faf5e6'; c.fill(); c.stroke();
+    c.beginPath(); c.arc(0, -s * 0.26, s * 0.08, 0, 6.283); c.stroke();
+    c.beginPath();
+    c.moveTo(0, -s * 0.06); c.quadraticCurveTo(s * 0.16, s * 0.06, 0, s * 0.16);
+    c.quadraticCurveTo(-s * 0.16, s * 0.06, 0, -s * 0.06);
+    c.stroke();
+    c.restore();
+  }
+  function drawHouse(c, x, y, s) {
+    c.save(); c.translate(x, y); setInk(c, 3.2);
+    c.beginPath();
+    c.moveTo(-s * 0.34, -s * 0.06); c.lineTo(0, -s * 0.4); c.lineTo(s * 0.34, -s * 0.06);
+    c.stroke();
+    c.strokeRect(-s * 0.27, -s * 0.06, s * 0.54, s * 0.36);
+    c.strokeRect(-s * 0.06, s * 0.1, s * 0.13, s * 0.2);
+    c.restore();
+  }
+  function drawCake(c, x, y, s) {
+    c.save(); c.translate(x, y); setInk(c, 3);
+    c.beginPath(); c.moveTo(-s * 0.5, s * 0.24); c.quadraticCurveTo(0, s * 0.34, s * 0.5, s * 0.24); c.stroke();
+    roundRectPath(c, -s * 0.4, -s * 0.12, s * 0.8, s * 0.3, 4);
+    c.fillStyle = '#fff8ea'; c.fill(); c.stroke();
+    c.beginPath();
+    c.moveTo(-s * 0.4, -s * 0.1);
+    c.quadraticCurveTo(-s * 0.27, -s * 0.22, -s * 0.13, -s * 0.1);
+    c.quadraticCurveTo(0, -s * 0.22, s * 0.13, -s * 0.1);
+    c.quadraticCurveTo(s * 0.27, -s * 0.22, s * 0.4, -s * 0.1);
+    c.stroke();
+    c.beginPath(); c.moveTo(0, -s * 0.28); c.lineTo(0, -s * 0.52); c.stroke();
+    c.fillStyle = '#e88a6a';
+    c.beginPath(); c.ellipse(0, -s * 0.6, s * 0.07, s * 0.1, 0, 0, 6.283); c.fill();
+    c.restore();
+  }
+
+  /* ---------- 心情天气小图标 ---------- */
+  function dWeather(c, x, y, mood, s) {
+    c.save(); c.translate(x, y); setInk(c, 3);
+    var w = s * 0.8, h = s * 0.5;
+    if (mood === 'happy') {
+      c.fillStyle = '#f6c84a';
+      c.beginPath(); c.arc(0, 0, s * 0.26, 0, 6.283); c.fill(); c.stroke();
+      for (var i = 0; i < 8; i++) {
+        var a = i * Math.PI / 4;
+        c.beginPath();
+        c.moveTo(Math.cos(a) * s * 0.34, Math.sin(a) * s * 0.34);
+        c.lineTo(Math.cos(a) * s * 0.46, Math.sin(a) * s * 0.46);
+        c.stroke();
+      }
+    } else if (mood === 'tired') {
+      c.beginPath();
+      c.moveTo(0, -s * 0.3); c.arc(0, 0, s * 0.3, -Math.PI / 2, Math.PI / 2);
+      c.arc(s * 0.13, -s * 0.03, s * 0.25, Math.PI / 2, -Math.PI / 2, true);
+      c.closePath();
+      c.fillStyle = '#d9d3e8'; c.fill(); c.stroke();
+      drawSparkle(c, s * 0.28, -s * 0.22, 4.5, 0);
+    } else {
+      if (mood === 'calm') {
+        c.fillStyle = '#f6c84a';
+        c.beginPath(); c.arc(-s * 0.22, -s * 0.26, s * 0.17, 0, 6.283); c.fill(); c.stroke();
+      }
+      cloudPath(c, w, h);
+      c.fillStyle = mood === 'anxious' ? '#a9a6a0' : '#f2efe8';
+      c.fill(); c.stroke();
+      if (mood === 'sad' || mood === 'angry') {
+        setInk(c, 3, mood === 'angry' ? '#c87a5a' : '#6fa0d8');
+        for (var r = -1; r <= 1; r++) {
+          c.beginPath();
+          c.moveTo(r * s * 0.2, h * 0.28);
+          c.lineTo(r * s * 0.2 - s * 0.06, h * 0.52);
+          c.stroke();
+        }
+      }
+      if (mood === 'angry') {
+        setInk(c, 3.4, '#d98a3a');
+        c.beginPath();
+        c.moveTo(s * 0.06, h * 0.18); c.lineTo(-s * 0.08, h * 0.42);
+        c.lineTo(s * 0.03, h * 0.4); c.lineTo(-s * 0.06, h * 0.62);
+        c.stroke();
+      }
+      if (mood === 'annoyed') {
+        setInk(c, 2.6, '#8a857c');
+        for (var w2 = 0; w2 < 2; w2++) {
+          var wy = h * (0.12 + w2 * 0.26);
+          c.beginPath();
+          c.moveTo(s * 0.02, wy);
+          c.quadraticCurveTo(s * 0.22, wy - s * 0.12, s * 0.42, wy);
+          c.stroke();
+        }
+      }
+    }
+    c.restore();
+  }
+
+  /* ---------- 手撕锯齿 ---------- */
+  function scallop(c, x0, x1, y, r, color) {
+    c.fillStyle = color;
+    for (var x = x0; x <= x1 + 1; x += 2 * r) {
+      c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill();
+    }
+  }
+
+  function dateSlash(ts) {
+    var t = new Date(ts);
+    return t.getFullYear() + '/' + String(t.getMonth() + 1).padStart(2, '0') + '/' + String(t.getDate()).padStart(2, '0');
+  }
+  function dateDot(ts) {
+    var t = new Date(ts);
+    return t.getFullYear() + '.' + String(t.getMonth() + 1).padStart(2, '0') + '.' + String(t.getDate()).padStart(2, '0');
+  }
+
+  /* ---------- 模板 3：手账笔记 ---------- */
+  function tplDiary(c, rec, mc, photo) {
+    c.fillStyle = '#efe6d2'; c.fillRect(0, 0, CW, CHH);
+    c.save();
+    c.translate(540, 678); c.rotate(-0.02);
+
+    c.save();
+    c.shadowColor = 'rgba(90,70,40,0.25)'; c.shadowBlur = 30; c.shadowOffsetY = 14;
+    roundRectPath(c, -425, -545, 850, 1090, 6);
+    c.fillStyle = '#fcfaf2'; c.fill();
+    c.restore();
+
+    c.save();
+    roundRectPath(c, -425, -545, 850, 1090, 6); c.clip();
+
+    // 页眉
+    c.textAlign = 'left'; c.fillStyle = '#9a927c';
+    c.font = '400 27px ' + SERIF;
+    c.fillText('Tiny Type', -372, -466);
+    c.strokeStyle = '#b5ac97'; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(-372, -450); c.lineTo(-212, -450); c.stroke();
+    c.textAlign = 'right'; c.fillStyle = '#6a6252';
+    c.font = '400 26px ' + SERIF;
+    var ds = dateSlash(rec.createdAt);
+    c.fillText(ds, 372, -468);
+    c.beginPath(); c.moveTo(200, -452); c.lineTo(372, -452); c.stroke();
+
+    dCloud(c, 70, -398, 190, 66, '#9ecdf5');
+    dCloud(c, 252, -388, 120, 50, '#b3d9f7');
+
+    // 正文（快乐体）
+    var quote = '「' + (rec.text || '') + '」';
+    var fit = fitTextFont(c, quote, 760, 320, 42, HAPPY, '400', 1.55);
+    c.font = '400 ' + fit.size + 'px ' + HAPPY;
+    c.textAlign = 'left'; c.fillStyle = '#35466e';
+    var tTop = -306;
+    fit.lines.forEach(function (ln, i) { c.fillText(ln, -365, tTop + i * fit.lh); });
+
+    // 配图
+    photoBox(c, photo, -365, 26, 730, 338, 4, mc, rec.id + 'diary');
+    dFlower(c, -396, 62, 15, '#f6d56a', '#e8a94a');
+
+    dCat(c, 306, 428, 92);
+
+    // 底部三个手绘符号
+    setInk(c, 3, '#7fa8d8');
+    c.beginPath(); c.arc(-326, 466, 25, 0, 6.283); c.stroke();
+    c.beginPath(); c.moveTo(-337, 464); c.lineTo(-327, 476); c.lineTo(-312, 452); c.stroke();
+    setInk(c, 3, '#7fb88a');
+    c.strokeRect(-232, 442, 48, 48);
+    c.beginPath(); c.moveTo(-220, 466); c.lineTo(-210, 478); c.lineTo(-193, 450); c.stroke();
+    setInk(c, 3, '#d88a7a');
+    c.beginPath(); c.arc(-130, 466, 25, 0, 6.283); c.stroke();
+    c.beginPath(); c.moveTo(-142, 454); c.lineTo(-118, 478); c.moveTo(-118, 454); c.lineTo(-142, 478); c.stroke();
+
+    c.restore();
+    c.restore();
+  }
+
+  /* ---------- 模板 4：日历页 ---------- */
+  var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  var WEEKS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  function tplCalendar(c, rec, mc, photo) {
+    c.fillStyle = '#f8f1e0'; c.fillRect(0, 0, CW, CHH);
+    setInk(c, 2, '#e2d6b8');
+    roundRectPath(c, 30, 30, 1020, 1290, 8); c.stroke();
+
+    // 顶部碎花胶带
+    c.save(); c.translate(332, 48); c.rotate(-0.05);
+    c.fillStyle = '#e7dabd';
+    c.beginPath();
+    c.moveTo(-150, -20); c.lineTo(150, -20); c.lineTo(150, 16);
+    c.lineTo(110, 22); c.lineTo(70, 14); c.lineTo(30, 22);
+    c.lineTo(-10, 14); c.lineTo(-50, 22); c.lineTo(-90, 14);
+    c.lineTo(-150, 20); c.closePath();
+    c.fill();
+    dFlower(c, -92, -3, 13, '#d98aa6', '#e8c25a');
+    dFlower(c, 0, -5, 15, '#a8a0ce', '#e8c25a');
+    dFlower(c, 92, -2, 13, '#c9a0a0', '#e8c25a');
+    c.restore();
+
+    var t = new Date(rec.createdAt);
+    c.textAlign = 'left'; c.fillStyle = '#5c4c4c';
+    c.font = "400 46px 'Caveat', cursive";
+    c.fillText('tiny type', 92, 196);
+    c.textAlign = 'right'; c.fillStyle = '#6b5a4e';
+    c.font = '400 38px ' + SERIF;
+    c.fillText(String(t.getFullYear()), 988, 196);
+
+    c.strokeStyle = '#7a4a60'; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(92, 228); c.lineTo(988, 228); c.stroke();
+
+    var day2 = String(t.getDate()).padStart(2, '0');
+    c.textAlign = 'center'; c.fillStyle = '#73405a';
+    c.font = '400 238px ' + SERIF;
+    c.fillText(day2, 540, 408);
+
+    c.font = '400 60px ' + SERIF;
+    c.textAlign = 'left'; c.fillText(MONTHS[t.getMonth()], 112, 392);
+    c.textAlign = 'right'; c.fillText(WEEKS[t.getDay()], 968, 392);
+
+    c.strokeStyle = '#7a4a60'; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(92, 450); c.lineTo(988, 450); c.stroke();
+
+    photoBox(c, photo, 250, 484, 580, 348, 3, mc, rec.id + 'calendar');
+
+    // 文字在下方区域垂直居中
+    var fit = fitTextFont(c, rec.text || '', 720, 296, 44, HAPPY, '400', 1.6);
+    var blockH = fit.lines.length * fit.lh;
+    var tTop = 902 + (296 - blockH) / 2 + fit.size;
+    c.font = '400 ' + fit.size + 'px ' + HAPPY;
+    c.textAlign = 'center'; c.fillStyle = '#6e4658';
+    fit.lines.forEach(function (ln, i) { c.fillText(ln, 540, tTop + i * fit.lh); });
+
+    dHeart(c, 952, 120, 44, '#b0708a');
+    dHeart(c, 128, 1244, 32, '#c08a9a');
+    drawBigStar(c, 196, 628, 15, ['#f4c96a', '#c89a3a']);
+    drawBigStar(c, 890, 704, 13, ['#f4c96a', '#c89a3a']);
+
+    c.save(); c.translate(908, 888); c.rotate(0.18); dTag(c, 0, 0, 58); c.restore();
+  }
+
+  /* ---------- 模板 5：锯齿票根 ---------- */
+  function tplTicket(c, rec, mc, photo) {
+    var bg = '#6e6960';
+    c.fillStyle = bg; c.fillRect(0, 0, CW, CHH);
+
+    var tkX = 90, tkY = 72, tkW = 900, tkB = 1278;
+    c.fillStyle = '#f6f4ed';
+    c.fillRect(tkX, tkY, tkW, tkB - tkY);
+    scallop(c, tkX, tkX + tkW, tkY, 16, bg);
+    scallop(c, tkX, tkX + tkW, tkB, 16, bg);
+
+    // 顶部三组图标
+    dWeather(c, 250, 142, rec.mood, 74);
+    c.font = '400 27px ' + HAPPY; c.textAlign = 'center'; c.fillStyle = '#4a4640';
+    c.fillText(MOOD_LABEL[rec.mood] || '', 250, 208);
+
+    drawBigStar(c, 540, 140, 29, ['#f4c96a', '#c89a3a']);
+    c.fillText('星语', 540, 208);
+
+    drawHouse(c, 830, 146, 66);
+    c.font = "400 28px 'Caveat', cursive";
+    c.fillText('HOME', 830, 208);
+
+    // 金色圆点
+    c.fillStyle = '#f4c531';
+    c.beginPath(); c.arc(540, 258, 29, 0, 6.283); c.fill();
+
+    photoBox(c, photo, 204, 310, 672, 556, 4, mc, rec.id + 'ticket');
+
+    drawCake(c, 540, 928, 56);
+
+    var fit = fitTextFont(c, rec.text || '', 720, 236, 40, HAPPY, '400', 1.5);
+    var blockH = fit.lines.length * fit.lh;
+    var tTop = 968 + (236 - blockH) / 2 + fit.size;
+    c.font = '400 ' + fit.size + 'px ' + HAPPY;
+    c.textAlign = 'center'; c.fillStyle = '#3a3631';
+    fit.lines.forEach(function (ln, i) { c.fillText(ln, 540, tTop + i * fit.lh); });
+  }
+
+  function drawCard(rec, styleKey) {
+    cctx.clearRect(0, 0, CW, CHH);
+    var mc = moodColors(rec.mood);
+    return loadPhoto(rec).then(function (photo) {
+      if (styleKey === 'postcard') tplPostcard(cctx, rec, mc);
+      else if (styleKey === 'diary') tplDiary(cctx, rec, mc, photo);
+      else if (styleKey === 'calendar') tplCalendar(cctx, rec, mc, photo);
+      else if (styleKey === 'ticket') tplTicket(cctx, rec, mc, photo);
+      else tplLetter(cctx, rec, mc);
+      return cardCanvas.toDataURL('image/png');
+    });
+  }
+
+  /* ---------- 预览弹层逻辑 ---------- */
+  var cvRec = null, cvStyle = 'letter', cvURL = '';
+  function openCardView(id) {
+    DB.listRecords({ includeArchived: true }).then(function (recs) {
+      var rec = recs.find(function (r) { return r.id === id; });
+      if (!rec) return;
+      cvRec = rec; cvStyle = 'letter';
+      renderStyleTabs();
+      closeDetail();
+      doc.getElementById('card-view').hidden = false;
+      renderCard();
+    });
+  }
+  function closeCardView() { doc.getElementById('card-view').hidden = true; }
+  function renderCard() {
+    var fontReady = Promise.resolve();
+    if (doc.fonts) {
+      fontReady = Promise.all([
+        doc.fonts.ready,
+        doc.fonts.load("400 42px 'ZCOOL KuaiLe'"),
+        doc.fonts.load("400 46px 'Caveat'")
+      ]);
+    }
+    fontReady.then(function () {
+      return drawCard(cvRec, cvStyle);
+    }).then(function (url) {
+      cvURL = url;
+      doc.getElementById('cv-image').src = url;
+    });
+  }
+  function renderStyleTabs() {
+    var wrap = doc.getElementById('cv-styles');
+    wrap.innerHTML = '';
+    CARD_STYLES.forEach(function (s) {
+      var b = doc.createElement('button');
+      b.className = 'cv-style' + (s.key === cvStyle ? ' active' : '');
+      b.textContent = s.name;
+      b.addEventListener('click', function () {
+        cvStyle = s.key;
+        wrap.querySelectorAll('.cv-style').forEach(function (x) { x.classList.remove('active'); });
+        b.classList.add('active');
+        renderCard();
+      });
+      wrap.appendChild(b);
+    });
+  }
+  function isIOS() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  }
+  doc.getElementById('cardview-mask').addEventListener('click', closeCardView);
+  doc.getElementById('cardview-close').addEventListener('click', closeCardView);
+  doc.getElementById('cv-save').addEventListener('click', function () {
+    if (isIOS()) {
+      showToast('请长按上方卡片图，选「存储到相册」');
+      return;
+    }
+    var a = doc.createElement('a');
+    a.href = cvURL;
+    a.download = '星语卡-' + dateDot(cvRec.createdAt) + '.png';
+    doc.body.appendChild(a); a.click(); a.remove();
+    showToast('已保存到相册');
+  });
+  if (isIOS()) doc.getElementById('cv-tip').hidden = false;
 })();
