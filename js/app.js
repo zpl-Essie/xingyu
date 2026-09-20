@@ -912,7 +912,7 @@
       html += '<span> · ' + ts + '</span></div>';
       if (rec.images && rec.images.length) {
         html += '<div class="bd-imgs">';
-        rec.images.forEach(function (src) { html += '<img src="' + src + '">'; });
+        rec.images.forEach(function (src, i) { html += '<img data-idx="' + i + '" src="' + src + '">'; });
         html += '</div>';
       }
       if (rec.text) html += '<div class="bd-text">' + escape(rec.text) + '</div>';
@@ -945,11 +945,28 @@
         });
       });
 
+      body.querySelectorAll('.bd-imgs img').forEach(function (im) {
+        im.addEventListener('click', function () {
+          openImageView(rec.images, +im.dataset.idx || 0);
+        });
+      });
+
       doc.getElementById('detail').hidden = false;
     });
   }
   function closeDetail() { doc.getElementById('detail').hidden = true; }
   doc.getElementById('detail-mask').addEventListener('click', closeDetail);
+
+  /* ---------- 图片查看层 ---------- */
+  function openImageView(imgs, idx) {
+    var wrap = doc.getElementById('img-view');
+    var sc = doc.getElementById('iv-scroll');
+    sc.innerHTML = imgs.map(function (src) { return '<img src="' + src + '">'; }).join('');
+    wrap.hidden = false;
+    requestAnimationFrame(function () { sc.scrollLeft = sc.clientWidth * idx; });
+  }
+  function closeImageView() { doc.getElementById('img-view').hidden = true; }
+  doc.getElementById('imgview-close').addEventListener('click', closeImageView);
 
   /* ---------- Toast ---------- */
   var toastTimer = null;
@@ -1306,6 +1323,30 @@
     roundRectPath(c, x, y, w, h, r); c.stroke();
   }
 
+  /* ---------- 照片完整显示：白边相纸，居中放在给定区域内，返回实际矩形 ---------- */
+  function photoContain(c, img, rx, ry, rw, rh) {
+    var pad = 14;
+    var iw = img.naturalWidth, ih = img.naturalHeight;
+    var maxW = rw - pad * 2, maxH = rh - pad * 2;
+    var dW, dH;
+    if (maxW / maxH > iw / ih) { dH = maxH; dW = dH * iw / ih; }
+    else { dW = maxW; dH = dW * ih / iw; }
+    var bW = dW + pad * 2, bH = dH + pad * 2;
+    var bX = rx + (rw - bW) / 2, bY = ry + Math.max(0, (rh - bH) / 2);
+    c.save();
+    c.shadowColor = 'rgba(90,70,40,0.2)'; c.shadowBlur = 14; c.shadowOffsetY = 6;
+    roundRectPath(c, bX, bY, bW, bH, 4);
+    c.fillStyle = '#ffffff'; c.fill();
+    c.restore();
+    c.save();
+    roundRectPath(c, bX + pad, bY + pad, dW, dH, 2); c.clip();
+    c.drawImage(img, bX + pad, bY + pad, dW, dH);
+    c.restore();
+    c.strokeStyle = 'rgba(60,50,30,0.18)'; c.lineWidth = 2;
+    roundRectPath(c, bX, bY, bW, bH, 4); c.stroke();
+    return { x: bX, y: bY, w: bW, h: bH };
+  }
+
   /* ---------- 手绘涂鸦工具 ---------- */
   var INK = '#57504a';
   function setInk(c, w, color) {
@@ -1505,9 +1546,9 @@
     // 页眉
     c.textAlign = 'left'; c.fillStyle = '#9a927c';
     c.font = '400 27px ' + SERIF;
-    c.fillText('Tiny Type', -372, -466);
+    c.fillText('星语小记', -372, -466);
     c.strokeStyle = '#b5ac97'; c.lineWidth = 1.5;
-    c.beginPath(); c.moveTo(-372, -450); c.lineTo(-212, -450); c.stroke();
+    c.beginPath(); c.moveTo(-372, -450); c.lineTo(-246, -450); c.stroke();
     c.textAlign = 'right'; c.fillStyle = '#6a6252';
     c.font = '400 26px ' + SERIF;
     var ds = dateSlash(rec.createdAt);
@@ -1519,28 +1560,35 @@
 
     // 正文（快乐体）
     var quote = '「' + (rec.text || '') + '」';
-    var fit = fitTextFont(c, quote, 760, 320, 42, HAPPY, '400', 1.55);
+    var tTop = -306, gap = 38;
+    // 预留：配图最小高度 + 白边 + 底部涂鸦区，超长文字自动缩字号
+    var fit = fitTextFont(c, quote, 760, 440, 42, HAPPY, '400', 1.55);
     c.font = '400 ' + fit.size + 'px ' + HAPPY;
     c.textAlign = 'left'; c.fillStyle = '#35466e';
-    var tTop = -306;
     fit.lines.forEach(function (ln, i) { c.fillText(ln, -365, tTop + i * fit.lh); });
 
-    // 配图
-    photoBox(c, photo, -365, 26, 730, 338, 4, mc, rec.id + 'diary');
-    dFlower(c, -396, 62, 15, '#f6d56a', '#e8a94a');
+    // 配图：紧跟正文，完整显示留白边
+    var pTop = tTop + fit.lines.length * fit.lh + gap;
+    var pBottom = 418;
+    var bX, bY, bW, bH;
 
+    if (photo) {
+      var pb = photoContain(c, photo, -365, pTop, 730, pBottom - pTop);
+      bX = pb.x; bY = pb.y; bW = pb.w; bH = pb.h;
+    } else {
+      // 无配图：心情渐变占位
+      bX = -365; bW = 730;
+      bH = Math.min(pBottom - pTop, 320);
+      bY = pTop + ((pBottom - pTop) - bH) / 2;
+      photoBox(c, null, bX, bY, bW, bH, 4, mc, rec.id + 'diary');
+    }
+
+    // 小花贴纸：有意压在照片右上角
+    dFlower(c, bX + bW - 18, bY + 6, 15, '#f6d56a', '#e8a94a');
+
+    // 底部：心情小星星（只用颜色表达心情）+ 小猫
+    drawBigStar(c, -330, 478, 26, mc);
     dCat(c, 306, 428, 92);
-
-    // 底部三个手绘符号
-    setInk(c, 3, '#7fa8d8');
-    c.beginPath(); c.arc(-326, 466, 25, 0, 6.283); c.stroke();
-    c.beginPath(); c.moveTo(-337, 464); c.lineTo(-327, 476); c.lineTo(-312, 452); c.stroke();
-    setInk(c, 3, '#7fb88a');
-    c.strokeRect(-232, 442, 48, 48);
-    c.beginPath(); c.moveTo(-220, 466); c.lineTo(-210, 478); c.lineTo(-193, 450); c.stroke();
-    setInk(c, 3, '#d88a7a');
-    c.beginPath(); c.arc(-130, 466, 25, 0, 6.283); c.stroke();
-    c.beginPath(); c.moveTo(-142, 454); c.lineTo(-118, 478); c.moveTo(-118, 454); c.lineTo(-142, 478); c.stroke();
 
     c.restore();
     c.restore();
@@ -1591,7 +1639,8 @@
     c.strokeStyle = '#7a4a60'; c.lineWidth = 3;
     c.beginPath(); c.moveTo(92, 450); c.lineTo(988, 450); c.stroke();
 
-    photoBox(c, photo, 250, 484, 580, 348, 3, mc, rec.id + 'calendar');
+    if (photo) photoContain(c, photo, 250, 484, 580, 348);
+    else photoBox(c, null, 250, 484, 580, 348, 3, mc, rec.id + 'calendar');
 
     // 文字在下方区域垂直居中
     var fit = fitTextFont(c, rec.text || '', 720, 296, 44, HAPPY, '400', 1.6);
@@ -1636,7 +1685,8 @@
     c.fillStyle = '#f4c531';
     c.beginPath(); c.arc(540, 258, 29, 0, 6.283); c.fill();
 
-    photoBox(c, photo, 204, 310, 672, 556, 4, mc, rec.id + 'ticket');
+    if (photo) photoContain(c, photo, 204, 310, 672, 556);
+    else photoBox(c, null, 204, 310, 672, 556, 4, mc, rec.id + 'ticket');
 
     drawCake(c, 540, 928, 56);
 
