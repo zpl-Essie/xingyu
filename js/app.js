@@ -995,9 +995,7 @@
   var CARD_STYLES = [
     { key: 'letter',   name: '信纸星' },
     { key: 'postcard', name: '明信片' },
-    { key: 'diary',    name: '手账笔记' },
-    { key: 'calendar', name: '日历页' },
-    { key: 'ticket',   name: '票根' }
+    { key: 'diary',    name: '手账笔记' }
   ];
 
   /* ---------- 确定性随机（同一条记录每次画出的星点位置一致） ---------- */
@@ -1353,24 +1351,6 @@
     c.strokeStyle = color || INK; c.fillStyle = color || INK;
     c.lineWidth = w; c.lineCap = 'round'; c.lineJoin = 'round';
   }
-  function cloudPath(c, w, h) {
-    c.beginPath();
-    c.moveTo(-w * 0.5, h * 0.15);
-    c.quadraticCurveTo(-w * 0.52, -h * 0.35, -w * 0.28, -h * 0.28);
-    c.quadraticCurveTo(-w * 0.22, -h * 0.72, w * 0.05, -h * 0.45);
-    c.quadraticCurveTo(w * 0.3, -h * 0.62, w * 0.42, -h * 0.22);
-    c.quadraticCurveTo(w * 0.58, h * 0.05, w * 0.3, h * 0.25);
-    c.lineTo(-w * 0.3, h * 0.25);
-    c.quadraticCurveTo(-w * 0.55, h * 0.28, -w * 0.5, h * 0.15);
-    c.closePath();
-  }
-  function dCloud(c, x, y, w, h, fill) {
-    c.save(); c.translate(x, y);
-    cloudPath(c, w, h);
-    c.fillStyle = fill; c.fill();
-    setInk(c, 3, '#5a96d0'); c.stroke();
-    c.restore();
-  }
   function dFlower(c, x, y, r, petal, center) {
     c.save(); c.translate(x, y);
     for (var i = 0; i < 5; i++) {
@@ -1380,17 +1360,6 @@
     }
     c.fillStyle = center || '#e8c25a';
     c.beginPath(); c.arc(0, 0, r * 0.42, 0, 6.283); c.fill();
-    c.restore();
-  }
-  function dHeart(c, x, y, s, fill) {
-    c.save(); c.translate(x, y);
-    c.beginPath();
-    c.moveTo(0, s * 0.32);
-    c.bezierCurveTo(-s * 0.62, -0.08, -s * 0.36, -s * 0.55, 0, -s * 0.25);
-    c.bezierCurveTo(s * 0.36, -s * 0.55, s * 0.62, -0.08, 0, s * 0.32);
-    c.closePath();
-    if (fill) { c.fillStyle = fill; c.fill(); }
-    setInk(c, 3, fill ? '#ffffff' : INK); c.stroke();
     c.restore();
   }
   function dCat(c, x, y, s) {
@@ -1412,113 +1381,6 @@
     c.beginPath(); c.moveTo(-0.03 * s, -0.3 * s); c.quadraticCurveTo(0, -0.26 * s, 0.03 * s, -0.3 * s); c.stroke();
     c.restore();
   }
-  function dTag(c, x, y, s) {
-    c.save(); c.translate(x, y);
-    setInk(c, 2.5, '#c2a878');
-    c.beginPath();
-    c.moveTo(-s * 0.32, -s * 0.5); c.lineTo(s * 0.32, -s * 0.42);
-    c.lineTo(s * 0.3, s * 0.5); c.lineTo(-s * 0.3, s * 0.5); c.closePath();
-    c.fillStyle = '#faf5e6'; c.fill(); c.stroke();
-    c.beginPath(); c.arc(0, -s * 0.26, s * 0.08, 0, 6.283); c.stroke();
-    c.beginPath();
-    c.moveTo(0, -s * 0.06); c.quadraticCurveTo(s * 0.16, s * 0.06, 0, s * 0.16);
-    c.quadraticCurveTo(-s * 0.16, s * 0.06, 0, -s * 0.06);
-    c.stroke();
-    c.restore();
-  }
-  function drawHouse(c, x, y, s) {
-    c.save(); c.translate(x, y); setInk(c, 3.2);
-    c.beginPath();
-    c.moveTo(-s * 0.34, -s * 0.06); c.lineTo(0, -s * 0.4); c.lineTo(s * 0.34, -s * 0.06);
-    c.stroke();
-    c.strokeRect(-s * 0.27, -s * 0.06, s * 0.54, s * 0.36);
-    c.strokeRect(-s * 0.06, s * 0.1, s * 0.13, s * 0.2);
-    c.restore();
-  }
-  function drawCake(c, x, y, s) {
-    c.save(); c.translate(x, y); setInk(c, 3);
-    c.beginPath(); c.moveTo(-s * 0.5, s * 0.24); c.quadraticCurveTo(0, s * 0.34, s * 0.5, s * 0.24); c.stroke();
-    roundRectPath(c, -s * 0.4, -s * 0.12, s * 0.8, s * 0.3, 4);
-    c.fillStyle = '#fff8ea'; c.fill(); c.stroke();
-    c.beginPath();
-    c.moveTo(-s * 0.4, -s * 0.1);
-    c.quadraticCurveTo(-s * 0.27, -s * 0.22, -s * 0.13, -s * 0.1);
-    c.quadraticCurveTo(0, -s * 0.22, s * 0.13, -s * 0.1);
-    c.quadraticCurveTo(s * 0.27, -s * 0.22, s * 0.4, -s * 0.1);
-    c.stroke();
-    c.beginPath(); c.moveTo(0, -s * 0.28); c.lineTo(0, -s * 0.52); c.stroke();
-    c.fillStyle = '#e88a6a';
-    c.beginPath(); c.ellipse(0, -s * 0.6, s * 0.07, s * 0.1, 0, 0, 6.283); c.fill();
-    c.restore();
-  }
-
-  /* ---------- 心情天气小图标 ---------- */
-  function dWeather(c, x, y, mood, s) {
-    c.save(); c.translate(x, y); setInk(c, 3);
-    var w = s * 0.8, h = s * 0.5;
-    if (mood === 'happy') {
-      c.fillStyle = '#f6c84a';
-      c.beginPath(); c.arc(0, 0, s * 0.26, 0, 6.283); c.fill(); c.stroke();
-      for (var i = 0; i < 8; i++) {
-        var a = i * Math.PI / 4;
-        c.beginPath();
-        c.moveTo(Math.cos(a) * s * 0.34, Math.sin(a) * s * 0.34);
-        c.lineTo(Math.cos(a) * s * 0.46, Math.sin(a) * s * 0.46);
-        c.stroke();
-      }
-    } else if (mood === 'tired') {
-      c.beginPath();
-      c.moveTo(0, -s * 0.3); c.arc(0, 0, s * 0.3, -Math.PI / 2, Math.PI / 2);
-      c.arc(s * 0.13, -s * 0.03, s * 0.25, Math.PI / 2, -Math.PI / 2, true);
-      c.closePath();
-      c.fillStyle = '#d9d3e8'; c.fill(); c.stroke();
-      drawSparkle(c, s * 0.28, -s * 0.22, 4.5, 0);
-    } else {
-      if (mood === 'calm') {
-        c.fillStyle = '#f6c84a';
-        c.beginPath(); c.arc(-s * 0.22, -s * 0.26, s * 0.17, 0, 6.283); c.fill(); c.stroke();
-      }
-      cloudPath(c, w, h);
-      c.fillStyle = mood === 'anxious' ? '#a9a6a0' : '#f2efe8';
-      c.fill(); c.stroke();
-      if (mood === 'sad' || mood === 'angry') {
-        setInk(c, 3, mood === 'angry' ? '#c87a5a' : '#6fa0d8');
-        for (var r = -1; r <= 1; r++) {
-          c.beginPath();
-          c.moveTo(r * s * 0.2, h * 0.28);
-          c.lineTo(r * s * 0.2 - s * 0.06, h * 0.52);
-          c.stroke();
-        }
-      }
-      if (mood === 'angry') {
-        setInk(c, 3.4, '#d98a3a');
-        c.beginPath();
-        c.moveTo(s * 0.06, h * 0.18); c.lineTo(-s * 0.08, h * 0.42);
-        c.lineTo(s * 0.03, h * 0.4); c.lineTo(-s * 0.06, h * 0.62);
-        c.stroke();
-      }
-      if (mood === 'annoyed') {
-        setInk(c, 2.6, '#8a857c');
-        for (var w2 = 0; w2 < 2; w2++) {
-          var wy = h * (0.12 + w2 * 0.26);
-          c.beginPath();
-          c.moveTo(s * 0.02, wy);
-          c.quadraticCurveTo(s * 0.22, wy - s * 0.12, s * 0.42, wy);
-          c.stroke();
-        }
-      }
-    }
-    c.restore();
-  }
-
-  /* ---------- 手撕锯齿 ---------- */
-  function scallop(c, x0, x1, y, r, color) {
-    c.fillStyle = color;
-    for (var x = x0; x <= x1 + 1; x += 2 * r) {
-      c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill();
-    }
-  }
-
   function dateSlash(ts) {
     var t = new Date(ts);
     return t.getFullYear() + '/' + String(t.getMonth() + 1).padStart(2, '0') + '/' + String(t.getDate()).padStart(2, '0');
@@ -1554,9 +1416,6 @@
     var ds = dateSlash(rec.createdAt);
     c.fillText(ds, 372, -468);
     c.beginPath(); c.moveTo(200, -452); c.lineTo(372, -452); c.stroke();
-
-    dCloud(c, 70, -398, 190, 66, '#9ecdf5');
-    dCloud(c, 252, -388, 120, 50, '#b3d9f7');
 
     // 正文（快乐体）
     var quote = '「' + (rec.text || '') + '」';
@@ -1594,118 +1453,12 @@
     c.restore();
   }
 
-  /* ---------- 模板 4：日历页 ---------- */
-  var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-  var WEEKS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  function tplCalendar(c, rec, mc, photo) {
-    c.fillStyle = '#f8f1e0'; c.fillRect(0, 0, CW, CHH);
-    setInk(c, 2, '#e2d6b8');
-    roundRectPath(c, 30, 30, 1020, 1290, 8); c.stroke();
-
-    // 顶部碎花胶带
-    c.save(); c.translate(332, 48); c.rotate(-0.05);
-    c.fillStyle = '#e7dabd';
-    c.beginPath();
-    c.moveTo(-150, -20); c.lineTo(150, -20); c.lineTo(150, 16);
-    c.lineTo(110, 22); c.lineTo(70, 14); c.lineTo(30, 22);
-    c.lineTo(-10, 14); c.lineTo(-50, 22); c.lineTo(-90, 14);
-    c.lineTo(-150, 20); c.closePath();
-    c.fill();
-    dFlower(c, -92, -3, 13, '#d98aa6', '#e8c25a');
-    dFlower(c, 0, -5, 15, '#a8a0ce', '#e8c25a');
-    dFlower(c, 92, -2, 13, '#c9a0a0', '#e8c25a');
-    c.restore();
-
-    var t = new Date(rec.createdAt);
-    c.textAlign = 'left'; c.fillStyle = '#5c4c4c';
-    c.font = "400 46px 'Caveat', cursive";
-    c.fillText('tiny type', 92, 196);
-    c.textAlign = 'right'; c.fillStyle = '#6b5a4e';
-    c.font = '400 38px ' + SERIF;
-    c.fillText(String(t.getFullYear()), 988, 196);
-
-    c.strokeStyle = '#7a4a60'; c.lineWidth = 3;
-    c.beginPath(); c.moveTo(92, 228); c.lineTo(988, 228); c.stroke();
-
-    var day2 = String(t.getDate()).padStart(2, '0');
-    c.textAlign = 'center'; c.fillStyle = '#73405a';
-    c.font = '400 238px ' + SERIF;
-    c.fillText(day2, 540, 408);
-
-    c.font = '400 60px ' + SERIF;
-    c.textAlign = 'left'; c.fillText(MONTHS[t.getMonth()], 112, 392);
-    c.textAlign = 'right'; c.fillText(WEEKS[t.getDay()], 968, 392);
-
-    c.strokeStyle = '#7a4a60'; c.lineWidth = 3;
-    c.beginPath(); c.moveTo(92, 450); c.lineTo(988, 450); c.stroke();
-
-    if (photo) photoContain(c, photo, 250, 484, 580, 348);
-    else photoBox(c, null, 250, 484, 580, 348, 3, mc, rec.id + 'calendar');
-
-    // 文字在下方区域垂直居中
-    var fit = fitTextFont(c, rec.text || '', 720, 296, 44, HAPPY, '400', 1.6);
-    var blockH = fit.lines.length * fit.lh;
-    var tTop = 902 + (296 - blockH) / 2 + fit.size;
-    c.font = '400 ' + fit.size + 'px ' + HAPPY;
-    c.textAlign = 'center'; c.fillStyle = '#6e4658';
-    fit.lines.forEach(function (ln, i) { c.fillText(ln, 540, tTop + i * fit.lh); });
-
-    dHeart(c, 952, 120, 44, '#b0708a');
-    dHeart(c, 128, 1244, 32, '#c08a9a');
-    drawBigStar(c, 196, 628, 15, ['#f4c96a', '#c89a3a']);
-    drawBigStar(c, 890, 704, 13, ['#f4c96a', '#c89a3a']);
-
-    c.save(); c.translate(908, 888); c.rotate(0.18); dTag(c, 0, 0, 58); c.restore();
-  }
-
-  /* ---------- 模板 5：锯齿票根 ---------- */
-  function tplTicket(c, rec, mc, photo) {
-    var bg = '#6e6960';
-    c.fillStyle = bg; c.fillRect(0, 0, CW, CHH);
-
-    var tkX = 90, tkY = 72, tkW = 900, tkB = 1278;
-    c.fillStyle = '#f6f4ed';
-    c.fillRect(tkX, tkY, tkW, tkB - tkY);
-    scallop(c, tkX, tkX + tkW, tkY, 16, bg);
-    scallop(c, tkX, tkX + tkW, tkB, 16, bg);
-
-    // 顶部三组图标
-    dWeather(c, 250, 142, rec.mood, 74);
-    c.font = '400 27px ' + HAPPY; c.textAlign = 'center'; c.fillStyle = '#4a4640';
-    c.fillText(MOOD_LABEL[rec.mood] || '', 250, 208);
-
-    drawBigStar(c, 540, 140, 29, ['#f4c96a', '#c89a3a']);
-    c.fillText('星语', 540, 208);
-
-    drawHouse(c, 830, 146, 66);
-    c.font = "400 28px 'Caveat', cursive";
-    c.fillText('HOME', 830, 208);
-
-    // 金色圆点
-    c.fillStyle = '#f4c531';
-    c.beginPath(); c.arc(540, 258, 29, 0, 6.283); c.fill();
-
-    if (photo) photoContain(c, photo, 204, 310, 672, 556);
-    else photoBox(c, null, 204, 310, 672, 556, 4, mc, rec.id + 'ticket');
-
-    drawCake(c, 540, 928, 56);
-
-    var fit = fitTextFont(c, rec.text || '', 720, 236, 40, HAPPY, '400', 1.5);
-    var blockH = fit.lines.length * fit.lh;
-    var tTop = 968 + (236 - blockH) / 2 + fit.size;
-    c.font = '400 ' + fit.size + 'px ' + HAPPY;
-    c.textAlign = 'center'; c.fillStyle = '#3a3631';
-    fit.lines.forEach(function (ln, i) { c.fillText(ln, 540, tTop + i * fit.lh); });
-  }
-
   function drawCard(rec, styleKey) {
     cctx.clearRect(0, 0, CW, CHH);
     var mc = moodColors(rec.mood);
     return loadPhoto(rec).then(function (photo) {
       if (styleKey === 'postcard') tplPostcard(cctx, rec, mc);
       else if (styleKey === 'diary') tplDiary(cctx, rec, mc, photo);
-      else if (styleKey === 'calendar') tplCalendar(cctx, rec, mc, photo);
-      else if (styleKey === 'ticket') tplTicket(cctx, rec, mc, photo);
       else tplLetter(cctx, rec, mc);
       return cardCanvas.toDataURL('image/png');
     });
