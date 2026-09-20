@@ -1,4 +1,4 @@
-const CACHE = 'xingyu-v20260920QC';
+const CACHE = 'xingyu-v20260920QE';
 const ASSETS = [
   './',
   './index.html',
@@ -10,7 +10,9 @@ const ASSETS = [
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
-  './icon-maskable-512.png'
+  './icon-maskable-512.png',
+  './icon-180.png',
+  './favicon.ico'
 ];
 
 self.addEventListener('install', (e) => {
