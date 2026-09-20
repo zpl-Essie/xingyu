@@ -1,4 +1,4 @@
-const CACHE = 'xingyu-v20260920QE';
+const CACHE = 'xingyu-v20260920QH';
 const ASSETS = [
   './',
   './index.html',

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="icon-180.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="css/style.css?v=20260920QE">
+  <link rel="stylesheet" href="css/style.css?v=20260920QH">
 </head>
 <body>
   <!-- ============ 星空首页 ============ -->
@@ -152,6 +152,12 @@
     </div>
   </div>
 
+  <!-- ============ 图片查看层 ============ -->
+  <div id="img-view" hidden>
+    <div class="iv-scroll" id="iv-scroll"></div>
+    <button class="iv-close" id="imgview-close" aria-label="关闭">✕</button>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
@@ -164,9 +170,9 @@
 
   <input type="file" id="file-image" accept="image/*" multiple hidden>
 
-  <script src="js/data.js?v=20260920QE"></script>
-  <script src="js/db.js?v=20260920QE"></script>
-  <script src="js/app.js?v=20260920QE"></script>
+  <script src="js/data.js?v=20260920QH"></script>
+  <script src="js/db.js?v=20260920QH"></script>
+  <script src="js/app.js?v=20260920QH"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
