@@ -3,7 +3,7 @@
   "short_name": "星语",
   "description": "记录每一颗心事之星",
   "lang": "zh-CN",
-  "start_url": "./index.html?v=20260920QH",
+  "start_url": "./index.html?v=20260920QJ",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
